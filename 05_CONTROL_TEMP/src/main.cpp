@@ -1,10 +1,15 @@
 #include <Arduino.h>
 #include "I2CDriver.h"
 #include "AD5593R.h"
+#include "MCP9600.h"
 #include "PWM.h"
 #include "PI.h"
 #include "Filter.h"
 
+volatile uint8_t _isrCount= 0;
+
+/* Set and print ambient resolution */
+Ambient_Resolution ambientRes = RES_ZERO_POINT_0625;
 
 PWMChannel tc5Isr(pwmConfigs[6]);
 volatile uint16_t _tc5Count = 0;
@@ -17,18 +22,18 @@ int bufferIndex;               // Current index in the buffer
 
 #define GAINV 7.48
 
-// #define CLOSED_LOOP
-#define OPEN_LOOP
+#define CLOSED_LOOP
+// #define OPEN_LOOP
 
 const float LP_COEFFICIENT[] = {0.140775364680379, 0.140775364680379, -0.718449270639242};
 volatile bool isControlFlag = false;
 
 #define CONTROL_VOLTAGE
 #ifdef CONTROL_VOLTAGE
-volatile FIRST_ORDER_FILTER VoltageFilter = {{0, 0}, {0, 0}};
-#define KP 0.001
-#define KI 1
-#define TS 0.0109226667 // 91.55Hz
+FIRST_ORDER_FILTER VoltageFilter = {{0, 0}, {0, 0}};
+#define BUCK_KP 0.001
+#define BUCK_KI 1
+#define BUCK_TS 0.0109226667 // 91.55Hz
 #define D_MAX 0.6       // limit by duty cycle, D_MAX = 0.7 -> Vo_max = Vin * D_MAX = 24 * 0.6 = 14.4 V
 #define D_MIN 0
 #endif
@@ -37,10 +42,31 @@ volatile FIRST_ORDER_FILTER VoltageFilter = {{0, 0}, {0, 0}};
 volatile PI_VAL BUCK_PI = PI_DEFAULT;
 
 AD5593R myAD5593R(0x11, &SAMDWire3);
-volatile uint16_t sen_adc = 0;
-volatile float sen_actual = 0;
-volatile float Vset = 0;
-volatile float duty_cycle = 0;
+uint16_t sen_adc = 0;
+float sen_actual = 0;
+float Vset = 0;
+float duty_cycle = 0;
+
+MCP9600 mcp_bot(&SAMDWire3,0x60);
+MCP9600 mcp_mid(&SAMDWire3,0x67);
+float temp_top;
+float temp_mid;
+float Tset = 20;
+
+#define TEMP_CONTROL
+
+#ifdef TEMP_CONTROL
+// Temperature Controller
+volatile PI_VAL TEMP_PI = PI_DEFAULT;
+
+#define TEMP_KP 0.56
+#define TEMP_KI 0.01
+#define TEMP_TS 0.5461  // 50 * BUCK_TS 
+#define V_MAX 13.5      // limit Voltage at 13.5 V
+#define V_MIN 0
+
+#endif
+
 
 void handleCommand(const char *command, const char *args);
 void printAllInfo();
@@ -64,13 +90,45 @@ void setup()
     }
   }
 
+  // TEM SENSOR
+  SAMDWire3.setClock(100000);
+  if (!mcp_bot.begin() && !mcp_mid.begin())
+  {
+    while (1)
+    {
+      SerialUSB.println("Sensor not found. Check wiring!");
+    }
+  }
+  /* Set and print ambient resolution */
+  mcp_bot.setAmbientResolution(ambientRes);
+  mcp_mid.setAmbientResolution(ambientRes);
+
+  mcp_bot.setADCresolution(MCP9600_ADCRESOLUTION_18);
+  mcp_mid.setADCresolution(MCP9600_ADCRESOLUTION_18);
+
+  mcp_bot.setThermocoupleType(MCP9600_TYPE_J);
+  mcp_mid.setThermocoupleType(MCP9600_TYPE_J);
+
+  mcp_bot.setFilterCoefficient(1);
+  mcp_mid.setFilterCoefficient(1);
+  SAMDWire3.setClock(400000);
+  // TEM SENSOR
+
   // Init PI Controller
 #ifdef CONTROL_VOLTAGE
-  BUCK_PI.Kp = KP;
-  BUCK_PI.Ki = KI;
-  BUCK_PI.Ts = TS;
+  BUCK_PI.Kp = BUCK_KP;
+  BUCK_PI.Ki = BUCK_KI;
+  BUCK_PI.Ts = BUCK_TS;
   BUCK_PI.OutMax = D_MAX;
   BUCK_PI.OutMin = D_MIN;
+#endif
+
+#ifdef TEMP_CONTROL
+  TEMP_PI.Kp = TEMP_KP;
+  TEMP_PI.Ki = TEMP_KI;
+  TEMP_PI.Ts = TEMP_TS;
+  TEMP_PI.OutMax = V_MAX;
+  TEMP_PI.OutMin = V_MIN;
 #endif
 
   tc5Isr.init();
@@ -79,15 +137,24 @@ void setup()
 }
 
 unsigned long _last_millis = 0;
+             
 
 void loop()
 {
   // put your main code here, to run repeatedly:
-  if (millis() - _last_millis > 400)
+  if (millis() - _last_millis > 500)
   {
     _last_millis = millis();
-    SerialUSB.print("Voltage: ");
-    SerialUSB.println(sen_actual);
+    // SerialUSB.print("Voltage: "); SerialUSB.println(sen_actual);
+    // SerialUSB.print("Bot: "); SerialUSB.println(temp_bot);
+    // SerialUSB.print("Mid: "); SerialUSB.println(temp_mid);
+
+    SerialUSB.print("DATA: ");
+    SerialUSB.print(temp_top); SerialUSB.print(","); 
+    SerialUSB.print(temp_mid); SerialUSB.print(","); 
+    SerialUSB.print(Tset); SerialUSB.print(","); 
+    SerialUSB.println(sen_actual); 
+
   }
 
   while (SerialUSB.available() > 0)
@@ -144,10 +211,31 @@ void TC5_Handler()
       Peltier3.setCompare1(BUCK_PI.Out * pwmConfigs[3].topValue);
     }else{
       Peltier3.setCompare1(0);
-      // Reset the pi controller
       Reset_PI(&BUCK_PI);
     }
 #endif
+
+    if(_isrCount == 50){
+      _isrCount = 0;
+      SAMDWire3.setClock(100000);
+      temp_top = mcp_bot.readThermocouple();
+      temp_mid = mcp_mid.readThermocouple();
+      SAMDWire3.setClock(400000);
+
+#ifdef TEMP_CONTROL
+    if(isControlFlag){
+      TEMP_PI.Err[0] = temp_mid - Tset;
+      Compute_PI(&TEMP_PI);
+      Vset = TEMP_PI.Out;
+    }else{
+      Reset_PI(&TEMP_PI);
+    }
+#endif
+
+
+    }else{
+      _isrCount++;
+    }
 
     digitalWrite(13, !digitalRead(13));
   }
@@ -175,6 +263,19 @@ void handleCommand(const char *command, const char *args)
           SerialUSB.print("VSET updated to: ");
           SerialUSB.println(Vset);
         }
+
+        if (strcmp(variable, "TSET") == 0)
+        {
+          if(value > 30)
+            Tset = 30;
+          else if (value < -5)
+            Tset = -5;
+          else Tset = value;
+
+          SerialUSB.print("TSET updated to: ");
+          SerialUSB.println(Tset);
+        }
+
         else if (strcmp(variable, "DUTY") == 0)
         {
           duty_cycle = ((value > 0.6) ? 0.6 : value);
@@ -218,6 +319,13 @@ void handleCommand(const char *command, const char *args)
         SerialUSB.print("VSET is: ");
         SerialUSB.println(Vset);
       }
+
+      if (strcmp(args, "TSET") == 0)
+      {
+        SerialUSB.print("TSET is: ");
+        SerialUSB.println(Tset);
+      }
+
       else if (strcmp(args, "ADC") == 0)
       {
         SerialUSB.print("ADC value is: ");
@@ -260,6 +368,9 @@ void printAllInfo()
   SerialUSB.println("===== System Parameters =====");
   SerialUSB.print("CONTROL: ");
   SerialUSB.println(isControlFlag);
+
+  SerialUSB.print("TSET: ");
+  SerialUSB.println(Tset);
 
   SerialUSB.print("VSET: ");
   SerialUSB.println(Vset);

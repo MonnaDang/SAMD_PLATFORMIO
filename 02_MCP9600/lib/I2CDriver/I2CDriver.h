@@ -46,7 +46,7 @@ public:
     I2CDriver(I2C_I2cConfig I2cConfig);
 
     void init(void);
-    void beginTranmission(uint8_t i2c_adress);
+    void beginTransmission(uint8_t i2c_adress);
 
     bool write_start(void);
     bool write_byte(uint8_t byte);
@@ -57,7 +57,7 @@ public:
     void setClock(uint32_t fscl);
     bool isBusy(void);
 
-    void endTranmission(void);
+    void endTransmission(void);
 
     void disableI2C(void);
     void enableI2C(void);

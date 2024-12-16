@@ -32,17 +32,21 @@ uint16_t pwmCount = 0;
 void loop()
 {
   // put your main code here, to run repeatedly:
-  uint16_t adc;
+  uint16_t adc,adc1;
 
   // digitalWrite(13, !digitalRead(13));
-  adc = myADC.readAdc(5);
-  pwmCount += 10;
-  pwmCount %= 1010;
-  Peltier3.setCompare1(pwmCount);
+  adc = myADC.readAdc(4);
+  adc1 = myADC.readAdc(5);
+  // pwmCount += 10;
+  // pwmCount %= 1010;
+  Peltier3.setCompare1(200);
 
 
   SerialUSB.print("ADC value: ");
   SerialUSB.println(adc);
+
+  SerialUSB.print("ADC1 value: ");
+  SerialUSB.println(adc1);
 
   delay(300);
 }

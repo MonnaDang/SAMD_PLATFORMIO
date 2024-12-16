@@ -116,6 +116,7 @@ uint16_t AD5593R::readAdc(uint8_t channel)
     bool isACK = false;
     uint8_t buff[2] = {0, 0};
 
+    // _mI2C->setClock(400000);
     _mI2C->beginTransmission(_i2cAddress);
     isACK = _mI2C->write_start();
     if (isACK)
@@ -126,9 +127,6 @@ uint16_t AD5593R::readAdc(uint8_t channel)
     }
     _mI2C->endTransmission();
 
-    // SerialUSB.print("ACK: ");
-    // SerialUSB.println(isACK);
-
     isACK = _mI2C->write_start();
     if (isACK)
     {
@@ -138,9 +136,6 @@ uint16_t AD5593R::readAdc(uint8_t channel)
 
     _mI2C->read(buff, 2); // Read ADC
     // _mI2C->setClock(100000);
-
-    // SerialUSB.print("DATA: ");
-    // SerialUSB.println((buff[0] & 0x0F) << 8 | buff[1]);
 
     return (buff[0] & 0x0F) << 8 | buff[1];
 }

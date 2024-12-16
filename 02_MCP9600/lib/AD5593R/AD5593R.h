@@ -8,12 +8,12 @@ Description:
 Source Library: https://github.com/LukasJanavicius/AD5593R-Arduino-ESP32-Library/tree/master
 */
 
-#ifndef _AD5593R_W_H_
-#define _AD5593R_W_H_
+#ifndef _AD5593R_H_
+#define _AD5593R_H_
 
 #include <Arduino.h>
 #include <stdint.h>
-#include <Wire.h>
+#include "I2CDriver.h"
 
 // Definitions
 #define _ADAC_NULL 0b00000000
@@ -56,39 +56,36 @@ Source Library: https://github.com/LukasJanavicius/AD5593R-Arduino-ESP32-Library
 
 class AD5593R {
 public:
-    AD5593R(uint8_t address = 0x11, TwoWire *wire = &Wire);
+    AD5593R(uint8_t address = 0x11, I2CDriver *_mI2C = &SAMDWire3);
 
     // Start the I2C sercom and config defaut AD5593R
-    void begin();
+    bool begin(void);
     
     // Enable Internal Vref = 2.5V, based on Schematic of Swif-2
-    void enableInternalVref();
+    bool enableInternalVref(void);
 
     // Set Max Vref to 2xVref to measure full scale of signal
-    void setMax2xVref();
-    void setMax1xVref();
+    bool setMax2xVref();
+    bool setMax1xVref();
 
     // Config ADC channels, set to 1 to enable ADC (each bit)
-    void configureAdc(uint8_t channels);
+    bool configureAdc(uint8_t channels);
     
     // Config DAC channels, set to 1 to enable DAC (each bit)
-    void configureDdc(uint8_t channels);
+    bool configureDdc(uint8_t channels);
 
     // Read single ADC channel
     uint16_t readAdc(uint8_t channel);
 
     // Write signle DAC channel
-    void writeDac(uint8_t channel, uint16_t value);
+    bool writeDac(uint8_t channel, uint16_t value);
 
     // Read multiple ADC channel (for default read all 4-adc channel)
-    void readAdcs(uint8_t channels, uint16_t *values);
-
-    // Write multiple DAC channel
-    void writeDacs(uint8_t channels, uint16_t *values);
-
+    bool readAdcs(uint8_t channels, uint16_t *values);
+    
 private:
     uint8_t _i2cAddress;
-    TwoWire *_wire;
+    I2CDriver* _mI2C;
 
     uint8_t adcChannels;
     uint8_t dacChannels;

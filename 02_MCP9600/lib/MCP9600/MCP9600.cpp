@@ -11,13 +11,13 @@ bool MCP9600::begin()
     bool isACK = false;
     uint8_t devID_REV[2] = {0, 0};
     _mI2C_dev->init();
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
     {
         isACK = _mI2C_dev->write_byte(MCP9600_DEVICEID);
     }
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
 
     if (isACK)
     {
@@ -37,11 +37,11 @@ float MCP9600::readThermocouple(void)
     uint8_t data[2] = {0, 0};
     int16_t rawData = 0;
 
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_HOTJUNCTION);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(data, 2);
     rawData = (data[0] << 8) | data[1];
@@ -58,11 +58,11 @@ float MCP9600::readAmbient(void)
     uint8_t data[2] = {0, 0};
     int16_t rawData = 0;
 
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_COLDJUNCTION);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(data, 2);
     rawData = (data[0] << 8) | data[1];
@@ -78,11 +78,11 @@ MCP9600_ThemocoupleType MCP9600::getThermocoupleType(void)
     bool isACK = false;
     uint8_t data;
 
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_SENSORCONFIG);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
 
@@ -97,24 +97,24 @@ void MCP9600::setThermocoupleType(MCP9600_ThemocoupleType type)
     bool isACK = false;
     uint8_t data = 0;
     // read back sensor config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_SENSORCONFIG);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
 
     data = (data & ~0x70) | (type << 3);
 
     // write sensor config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_SENSORCONFIG);
     if (isACK)
         isACK = _mI2C_dev->write_byte(data);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
 }
 
 uint8_t MCP9600::getFilterCoefficient(void)
@@ -122,11 +122,11 @@ uint8_t MCP9600::getFilterCoefficient(void)
     bool isACK = false;
     uint8_t data;
 
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_SENSORCONFIG);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
 
@@ -141,11 +141,11 @@ void MCP9600::setFilterCoefficient(uint8_t fillCoeff)
     bool isACK = false;
     uint8_t data = 0;
     // read back sensor config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_SENSORCONFIG);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
 
@@ -153,13 +153,13 @@ void MCP9600::setFilterCoefficient(uint8_t fillCoeff)
     data = (data & ~0x07) | (fillCoeff & 0x07);
 
     // write sensor config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_SENSORCONFIG);
     if (isACK)
         isACK = _mI2C_dev->write_byte(data);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
 }
 
 MCP9600_ADCResolution MCP9600::getADCresolution(void)
@@ -167,11 +167,11 @@ MCP9600_ADCResolution MCP9600::getADCresolution(void)
     bool isACK = false;
     uint8_t data = 0;
     // read back sensor config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_DEVICECONFIG);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
 
@@ -186,11 +186,11 @@ void MCP9600::setADCresolution(MCP9600_ADCResolution resolution)
     bool isACK = false;
     uint8_t data = 0;
     // read back device config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_DEVICECONFIG);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
 
@@ -198,13 +198,13 @@ void MCP9600::setADCresolution(MCP9600_ADCResolution resolution)
     data = (data & ~0x60) | (resolution << 5);
 
     // write device config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_DEVICECONFIG);
     if (isACK)
         isACK = _mI2C_dev->write_byte(data);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
 }
 
 int32_t MCP9600::readADC(void)
@@ -213,11 +213,11 @@ int32_t MCP9600::readADC(void)
     uint8_t data[3] = {0, 0, 0};
     int32_t rawData = 0;
 
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_RAWDATAADC);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(data, 3);
     rawData = (data[0] << 16) | (data[1] << 8) | data[2];
@@ -234,11 +234,11 @@ void MCP9600::setAmbientResolution(Ambient_Resolution res_value)
     bool isACK = false;
     uint8_t data = 0;
     // read back device config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_DEVICECONFIG);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
 
@@ -246,13 +246,13 @@ void MCP9600::setAmbientResolution(Ambient_Resolution res_value)
     data = (data & ~0x80) | (res_value << 7);
 
     // write device config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_DEVICECONFIG);
     if (isACK)
         isACK = _mI2C_dev->write_byte(data);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
 }
 
 uint8_t MCP9600::getStatus(void)
@@ -260,11 +260,11 @@ uint8_t MCP9600::getStatus(void)
     bool isACK = false;
     uint8_t data = 0;
     // read back device config register
-    _mI2C_dev->beginTranmission(_i2c_adrr);
+    _mI2C_dev->beginTransmission(_i2c_adrr);
     isACK = _mI2C_dev->write_start();
     if (isACK)
         isACK = _mI2C_dev->write_byte(MCP9600_STATUS);
-    _mI2C_dev->endTranmission();
+    _mI2C_dev->endTransmission();
     if (isACK)
         isACK = _mI2C_dev->read(&data, 1);
     return data;

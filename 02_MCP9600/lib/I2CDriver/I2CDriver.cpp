@@ -27,6 +27,8 @@ void I2CDriver::init()
     GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(_mI2c.sercomModule_ID) |
                         GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0;
 
+    disableI2C();
+
     // Enable smart mode
     _mI2c.sercomBase->I2CM.CTRLB.reg = SERCOM_I2CM_CTRLB_SMEN;
     while (_mI2c.sercomBase->I2CM.SYNCBUSY.reg)
@@ -52,10 +54,12 @@ void I2CDriver::init()
     while (_mI2c.sercomBase->I2CM.SYNCBUSY.reg)
         ;
 
+    enableI2C();
+
     // _mI2c.sercomBase->I2CM.INTENSET.reg = SERCOM_I2CM_INTENSET_MB | SERCOM_I2CM_INTENSET_SB;
 }
 
-void I2CDriver::beginTranmission(uint8_t i2c_adress)
+void I2CDriver::beginTransmission(uint8_t i2c_adress)
 {
     // Assign i2c address
     _maddr = i2c_adress;
@@ -177,7 +181,7 @@ bool I2CDriver::read(uint8_t *data, int size)
 
     if (size)
     {
-        _mI2c.sercomBase->I2CM.CTRLB.reg |= SERCOM_I2CM_CTRLB_ACKACT;   // send NACK after send last byte
+        _mI2c.sercomBase->I2CM.CTRLB.reg |= SERCOM_I2CM_CTRLB_ACKACT; // send NACK after send last byte
         _mI2c.sercomBase->I2CM.CTRLB.reg |= SERCOM_I2CM_CTRLB_CMD(3);
         data[size - 1] = _mI2c.sercomBase->I2CM.DATA.reg;
     }
@@ -199,7 +203,7 @@ bool I2CDriver::isBusy()
     return busy;
 }
 
-void I2CDriver::endTranmission()
+void I2CDriver::endTransmission()
 {
     _mI2c.sercomBase->I2CM.CTRLB.reg |= SERCOM_I2CM_CTRLB_CMD(3);
 }
@@ -208,7 +212,33 @@ void I2CDriver::setClock(uint32_t fscl)
 {
     disableI2C();
     _mFSCL = fscl;
-    init();
+
+    // init();
+
+    // Enable smart mode
+    _mI2c.sercomBase->I2CM.CTRLB.reg = SERCOM_I2CM_CTRLB_SMEN;
+    while (_mI2c.sercomBase->I2CM.SYNCBUSY.reg)
+        ;
+
+    // Calulate baudrate
+    uint32_t baudReate = calculateBaud(SystemCoreClock, _mFSCL);
+
+    // Set Baudrate
+    _mI2c.sercomBase->I2CM.BAUD.reg = SERCOM_I2CM_BAUD_BAUD(baudReate);
+    while (_mI2c.sercomBase->I2CM.SYNCBUSY.reg)
+        ;
+
+    // Config I2C master mode
+    _mI2c.sercomBase->I2CM.CTRLA.reg = SERCOM_I2CM_CTRLA_ENABLE |
+                                       SERCOM_I2CM_CTRLA_MODE_I2C_MASTER |
+                                       SERCOM_I2CM_CTRLA_SDAHOLD(3);
+    while (_mI2c.sercomBase->I2CM.SYNCBUSY.reg)
+        ;
+
+    // Force bus state to IDLE
+    _mI2c.sercomBase->I2CM.STATUS.reg |= SERCOM_I2CM_STATUS_BUSSTATE(1);
+    while (_mI2c.sercomBase->I2CM.SYNCBUSY.reg)
+        ;
     enableI2C();
 }
 
@@ -222,15 +252,31 @@ uint32_t I2CDriver::calculateBaud(uint32_t fgclk, uint32_t fscl)
 
 void I2CDriver::disableI2C()
 {
+    // Enable the I2C master mode
     _mI2c.sercomBase->I2CM.CTRLA.bit.ENABLE = 0;
+
     while (_mI2c.sercomBase->I2CM.SYNCBUSY.bit.ENABLE != 0)
-        ;
+    {
+        // Waiting the enable bit from SYNCBUSY is equal to 0;
+    }
 }
 void I2CDriver::enableI2C()
 {
+    // Enable the I2C master mode
     _mI2c.sercomBase->I2CM.CTRLA.bit.ENABLE = 1;
+
     while (_mI2c.sercomBase->I2CM.SYNCBUSY.bit.ENABLE != 0)
-        ;
+    {
+        // Waiting the enable bit from SYNCBUSY is equal to 0;
+    }
+
+    // Setting bus idle mode
+    _mI2c.sercomBase->I2CM.STATUS.bit.BUSSTATE = 1;
+
+    while (_mI2c.sercomBase->I2CM.SYNCBUSY.bit.SYSOP != 0)
+    {
+        // Wait the SYSOP bit from SYNCBUSY coming back to 0
+    }
 }
 
 I2CDriver SAMDWire(i2cConfigs[0]);
